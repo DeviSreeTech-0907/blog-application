@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Login</title>
+</head>
+
+<body>
+
+    <h2>Test User Login</h2>
+
+    <button onclick="loginUser()">Login Test User</button>
+
+    <p id="result"></p>
+
+    <script>
+
+        function loginUser() {
+
+            fetch("http://localhost:3001/api/login", {
+
+                method: "POST",
+
+                headers: {
+                    "Content-Type": "application/json"
+                },
+
+                body: JSON.stringify({
+                    email: "test@example.com",
+                    password: "123456"
+                })
+
+            })
+            .then(function(response) {
+                return response.json();
+            })
+            .then(function(data) {
+                document.getElementById("result").textContent = data.message;
+            })
+            .catch(function(error) {
+                document.getElementById("result").textContent =
+                    "Error connecting to server";
+            });
+
+        }
+
+    </script>
+
+</body>
+</html>
