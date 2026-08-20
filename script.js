@@ -22,7 +22,7 @@ if (loginForm) {
         try {
 
             const response = await fetch(
-                "http://localhost:3001/api/login",
+                    "https://blog-application-8sc6.onrender.com/api/login",
                 {
                     method: "POST",
 
