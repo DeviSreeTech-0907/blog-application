@@ -16,8 +16,8 @@ const JWT_SECRET = process.env.JWT_SECRET || "change_this_secret";
 app.use(cors());
 app.use(express.json());
 
-// Serve frontend files from the project root
-app.use(express.static(path.join(__dirname, "..")));
+// Serve frontend files from the same folder as server.js
+app.use(express.static(__dirname));
 
 // ==================== DATABASE ====================
 
@@ -261,7 +261,6 @@ app.post("/api/login", async (req, res) => {
             );
 
         res.json({
-
             message: "Login successful!",
 
             token: token,
@@ -271,7 +270,6 @@ app.post("/api/login", async (req, res) => {
                 name: user.name,
                 email: user.email
             }
-
         });
 
     } catch (error) {
@@ -362,26 +360,18 @@ app.post(
                 });
             }
 
-            const blog =
-                new Blog({
-
-                    title: title.trim(),
-
-                    category: category.trim(),
-
-                    content: content.trim(),
-
-                    author: user.name,
-
-                    userId: user._id
-                });
+            const blog = new Blog({
+                title: title.trim(),
+                category: category.trim(),
+                content: content.trim(),
+                author: user.name,
+                userId: user._id
+            });
 
             await blog.save();
 
             res.status(201).json({
-
                 message: "Blog created successfully!",
-
                 blog: blog
             });
 
@@ -420,14 +410,12 @@ app.get(
             if (search) {
 
                 query.$or = [
-
                     {
                         title: {
                             $regex: search,
                             $options: "i"
                         }
                     },
-
                     {
                         content: {
                             $regex: search,
@@ -478,9 +466,7 @@ app.get(
 
             const blog =
                 await Blog.findOne({
-
                     _id: req.params.id,
-
                     userId: req.user.userId
                 });
 
@@ -522,26 +508,26 @@ app.put(
                 content
             } = req.body;
 
+            if (!title || !category || !content) {
+
+                return res.status(400).json({
+                    message: "All blog fields are required."
+                });
+            }
+
             const blog =
                 await Blog.findOneAndUpdate(
-
                     {
                         _id: req.params.id,
-
                         userId: req.user.userId
                     },
-
                     {
                         title: title.trim(),
-
                         category: category.trim(),
-
                         content: content.trim()
                     },
-
                     {
                         new: true,
-
                         runValidators: true
                     }
                 );
@@ -555,10 +541,7 @@ app.put(
             }
 
             res.json({
-
-                message:
-                    "Blog updated successfully!",
-
+                message: "Blog updated successfully!",
                 blog: blog
             });
 
@@ -587,9 +570,7 @@ app.delete(
 
             const blog =
                 await Blog.findOneAndDelete({
-
                     _id: req.params.id,
-
                     userId: req.user.userId
                 });
 
@@ -624,7 +605,7 @@ app.delete(
 app.get("/", (req, res) => {
 
     res.sendFile(
-        path.join(__dirname, "..", "index.html")
+        path.join(__dirname, "index.html")
     );
 
 });
