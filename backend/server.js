@@ -3,17 +3,21 @@ const cors = require("cors");
 const mongoose = require("mongoose");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
+const path = require("path");
 require("dotenv").config();
 
 const app = express();
 
-const PORT = 3001;
+const PORT = process.env.PORT || 3001;
 const JWT_SECRET = process.env.JWT_SECRET || "change_this_secret";
 
 // ==================== MIDDLEWARE ====================
 
 app.use(cors());
 app.use(express.json());
+
+// Serve frontend files from the project root
+app.use(express.static(path.join(__dirname, "..")));
 
 // ==================== DATABASE ====================
 
@@ -106,7 +110,6 @@ function authenticateToken(req, res, next) {
         return res.status(401).json({
             message: "Access denied. Please login."
         });
-
     }
 
     const token = authHeader.split(" ")[1];
@@ -127,7 +130,6 @@ function authenticateToken(req, res, next) {
         return res.status(403).json({
             message: "Invalid or expired token."
         });
-
     }
 }
 
@@ -148,7 +150,6 @@ app.post("/api/register", async (req, res) => {
             return res.status(400).json({
                 message: "Please fill in all fields."
             });
-
         }
 
         if (password.length < 6) {
@@ -156,7 +157,6 @@ app.post("/api/register", async (req, res) => {
             return res.status(400).json({
                 message: "Password must be at least 6 characters."
             });
-
         }
 
         const normalizedEmail =
@@ -172,28 +172,21 @@ app.post("/api/register", async (req, res) => {
             return res.status(409).json({
                 message: "User already exists."
             });
-
         }
 
         const hashedPassword =
             await bcrypt.hash(password, 10);
 
         const user = new User({
-
             name: name.trim(),
-
             email: normalizedEmail,
-
             password: hashedPassword
-
         });
 
         await user.save();
 
         res.status(201).json({
-
             message: "Registration successful!"
-
         });
 
     } catch (error) {
@@ -204,14 +197,9 @@ app.post("/api/register", async (req, res) => {
         );
 
         res.status(500).json({
-
-            message:
-                "Server error during registration."
-
+            message: "Server error during registration."
         });
-
     }
-
 });
 
 // ==================== LOGIN ====================
@@ -228,12 +216,8 @@ app.post("/api/login", async (req, res) => {
         if (!email || !password) {
 
             return res.status(400).json({
-
-                message:
-                    "Please enter email and password."
-
+                message: "Please enter email and password."
             });
-
         }
 
         const normalizedEmail =
@@ -247,12 +231,8 @@ app.post("/api/login", async (req, res) => {
         if (!user) {
 
             return res.status(401).json({
-
-                message:
-                    "Invalid email or password."
-
+                message: "Invalid email or password."
             });
-
         }
 
         const passwordMatch =
@@ -264,30 +244,20 @@ app.post("/api/login", async (req, res) => {
         if (!passwordMatch) {
 
             return res.status(401).json({
-
-                message:
-                    "Invalid email or password."
-
+                message: "Invalid email or password."
             });
-
         }
 
         const token =
             jwt.sign(
-
                 {
                     userId: user._id.toString(),
-
                     email: user.email
-
                 },
-
                 JWT_SECRET,
-
                 {
                     expiresIn: "1h"
                 }
-
             );
 
         res.json({
@@ -297,13 +267,9 @@ app.post("/api/login", async (req, res) => {
             token: token,
 
             user: {
-
                 id: user._id,
-
                 name: user.name,
-
                 email: user.email
-
             }
 
         });
@@ -316,14 +282,9 @@ app.post("/api/login", async (req, res) => {
         );
 
         res.status(500).json({
-
-            message:
-                "Server error during login."
-
+            message: "Server error during login."
         });
-
     }
-
 });
 
 // ==================== PROFILE ====================
@@ -343,21 +304,14 @@ app.get(
             if (!user) {
 
                 return res.status(404).json({
-
                     message: "User not found."
-
                 });
-
             }
 
             res.json({
-
                 id: user._id,
-
                 name: user.name,
-
                 email: user.email
-
             });
 
         } catch (error) {
@@ -368,14 +322,9 @@ app.get(
             );
 
             res.status(500).json({
-
-                message:
-                    "Unable to load profile."
-
+                message: "Unable to load profile."
             });
-
         }
-
     }
 );
 
@@ -394,19 +343,11 @@ app.post(
                 content
             } = req.body;
 
-            if (
-                !title ||
-                !category ||
-                !content
-            ) {
+            if (!title || !category || !content) {
 
                 return res.status(400).json({
-
-                    message:
-                        "Please fill in all blog details."
-
+                    message: "Please fill in all blog details."
                 });
-
             }
 
             const user =
@@ -417,12 +358,8 @@ app.post(
             if (!user) {
 
                 return res.status(404).json({
-
-                    message:
-                        "User not found."
-
+                    message: "User not found."
                 });
-
             }
 
             const blog =
@@ -437,18 +374,15 @@ app.post(
                     author: user.name,
 
                     userId: user._id
-
                 });
 
             await blog.save();
 
             res.status(201).json({
 
-                message:
-                    "Blog created successfully!",
+                message: "Blog created successfully!",
 
                 blog: blog
-
             });
 
         } catch (error) {
@@ -459,14 +393,9 @@ app.post(
             );
 
             res.status(500).json({
-
-                message:
-                    "Unable to create blog."
-
+                message: "Unable to create blog."
             });
-
         }
-
     }
 );
 
@@ -485,9 +414,7 @@ app.get(
             } = req.query;
 
             const query = {
-
                 userId: req.user.userId
-
             };
 
             if (search) {
@@ -507,9 +434,7 @@ app.get(
                             $options: "i"
                         }
                     }
-
                 ];
-
             }
 
             if (
@@ -518,7 +443,6 @@ app.get(
             ) {
 
                 query.category = category;
-
             }
 
             const blogs =
@@ -537,14 +461,9 @@ app.get(
             );
 
             res.status(500).json({
-
-                message:
-                    "Unable to load blogs."
-
+                message: "Unable to load blogs."
             });
-
         }
-
     }
 );
 
@@ -563,18 +482,13 @@ app.get(
                     _id: req.params.id,
 
                     userId: req.user.userId
-
                 });
 
             if (!blog) {
 
                 return res.status(404).json({
-
-                    message:
-                        "Blog not found."
-
+                    message: "Blog not found."
                 });
-
             }
 
             res.json(blog);
@@ -587,14 +501,9 @@ app.get(
             );
 
             res.status(500).json({
-
-                message:
-                    "Unable to load blog."
-
+                message: "Unable to load blog."
             });
-
         }
-
     }
 );
 
@@ -635,18 +544,14 @@ app.put(
 
                         runValidators: true
                     }
-
                 );
 
             if (!blog) {
 
                 return res.status(404).json({
-
                     message:
                         "Blog not found or you are not the owner."
-
                 });
-
             }
 
             res.json({
@@ -655,7 +560,6 @@ app.put(
                     "Blog updated successfully!",
 
                 blog: blog
-
             });
 
         } catch (error) {
@@ -666,14 +570,9 @@ app.put(
             );
 
             res.status(500).json({
-
-                message:
-                    "Unable to update blog."
-
+                message: "Unable to update blog."
             });
-
         }
-
     }
 );
 
@@ -692,25 +591,18 @@ app.delete(
                     _id: req.params.id,
 
                     userId: req.user.userId
-
                 });
 
             if (!blog) {
 
                 return res.status(404).json({
-
                     message:
                         "Blog not found or you are not the owner."
-
                 });
-
             }
 
             res.json({
-
-                message:
-                    "Blog deleted successfully!"
-
+                message: "Blog deleted successfully!"
             });
 
         } catch (error) {
@@ -721,16 +613,21 @@ app.delete(
             );
 
             res.status(500).json({
-
-                message:
-                    "Unable to delete blog."
-
+                message: "Unable to delete blog."
             });
-
         }
-
     }
 );
+
+// ==================== HOME PAGE ====================
+
+app.get("/", (req, res) => {
+
+    res.sendFile(
+        path.join(__dirname, "..", "index.html")
+    );
+
+});
 
 // ==================== SERVER ====================
 
@@ -739,7 +636,7 @@ app.listen(
     () => {
 
         console.log(
-            `Blog Backend Server is running at http://localhost:${PORT}`
+            `Blog Backend Server is running on port ${PORT}`
         );
 
     }
