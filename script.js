@@ -132,7 +132,7 @@ if (registerForm) {
             try {
 
                 const response = await fetch(
-                    "http://localhost:3001/api/register",
+                    "https://blog-application-8sc6.onrender.com/api/register",
                     {
                         method: "POST",
 
@@ -261,7 +261,7 @@ if (blogForm) {
 
                     const response =
                         await fetch(
-                            "http://localhost:3001/api/blogs",
+                            "https://blog-application-8sc6.onrender.com/api/blogs",
                             {
                                 method: "POST",
 
@@ -351,7 +351,7 @@ if (blogList) {
 
                 const response =
                     await fetch(
-                        "http://localhost:3001/api/blogs",
+                        "https://blog-application-8sc6.onrender.com/api/blogs",
                         {
                             method: "GET",
 
@@ -495,7 +495,7 @@ async function editBlog(id) {
 
         const response =
             await fetch(
-                `http://localhost:3001/api/blogs/${id}`,
+                "https://blog-application-8sc6.onrender.com/api/blogs/${id}",
                 {
                     method: "GET",
 
@@ -577,7 +577,7 @@ async function editBlog(id) {
 
         const updateResponse =
             await fetch(
-                `http://localhost:3001/api/blogs/${id}`,
+                        `https://blog-application-8sc6.onrender.com/api/blogs/${id}`,
                 {
                     method: "PUT",
 
@@ -673,7 +673,7 @@ async function deleteBlog(id) {
 
         const response =
             await fetch(
-                `http://localhost:3001/api/blogs/${id}`,
+                `https://blog-application-8sc6.onrender.com/api/blogs/${id}`,
                 {
                     method: "DELETE",
 
@@ -776,7 +776,7 @@ if (blogView) {
 
                 const response =
                     await fetch(
-                        `http://localhost:3001/api/blogs/${id}`,
+                        `https://blog-application-8sc6.onrender.com/api/blogs/${id}`,
                         {
                             method: "GET",
 
@@ -909,7 +909,7 @@ if (profileElement) {
 
                 const response =
                     await fetch(
-                        "http://localhost:3001/api/profile",
+                        "https://blog-application-8sc6.onrender.com/api/profile",
                         {
                             method: "GET",
 
