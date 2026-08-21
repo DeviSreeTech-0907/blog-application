@@ -1,36 +1,54 @@
 const express = require("express");
-const cors = require("cors");
 const mongoose = require("mongoose");
+const cors = require("cors");
+const dotenv = require("dotenv");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
-const path = require("path");
-require("dotenv").config();
+
+dotenv.config();
 
 const app = express();
 
-const PORT = process.env.PORT || 3001;
-const JWT_SECRET = process.env.JWT_SECRET || "change_this_secret";
-
-// ==================== MIDDLEWARE ====================
+// =========================
+// Middleware
+// =========================
 
 app.use(cors());
 app.use(express.json());
 
-// Serve frontend files from the same folder as server.js
-app.use(express.static(__dirname));
+// =========================
+// Environment Variables
+// =========================
 
-// ==================== DATABASE ====================
+const PORT = process.env.PORT || 3001;
+const MONGODB_URI = process.env.MONGODB_URI;
+const JWT_SECRET = process.env.JWT_SECRET;
+
+// Check required environment variables
+if (!MONGODB_URI) {
+    console.error("❌ MONGODB_URI is missing in .env");
+}
+
+if (!JWT_SECRET) {
+    console.error("❌ JWT_SECRET is missing in .env");
+}
+
+// =========================
+// MongoDB Connection
+// =========================
 
 mongoose
-    .connect(process.env.MONGODB_URI)
+    .connect(MONGODB_URI)
     .then(() => {
-        console.log("MongoDB connected successfully!");
+        console.log("✅ MongoDB connected");
     })
     .catch((error) => {
-        console.error("MongoDB connection error:", error);
+        console.error("❌ MongoDB connection error:", error);
     });
 
-// ==================== USER MODEL ====================
+// =========================
+// User Schema
+// =========================
 
 const userSchema = new mongoose.Schema(
     {
@@ -60,17 +78,13 @@ const userSchema = new mongoose.Schema(
 
 const User = mongoose.model("User", userSchema);
 
-// ==================== BLOG MODEL ====================
+// =========================
+// Blog Schema
+// =========================
 
 const blogSchema = new mongoose.Schema(
     {
         title: {
-            type: String,
-            required: true,
-            trim: true
-        },
-
-        category: {
             type: String,
             required: true,
             trim: true
@@ -81,12 +95,13 @@ const blogSchema = new mongoose.Schema(
             required: true
         },
 
-        author: {
+        category: {
             type: String,
-            required: true
+            default: "General",
+            trim: true
         },
 
-        userId: {
+        author: {
             type: mongoose.Schema.Types.ObjectId,
             ref: "User",
             required: true
@@ -99,102 +114,89 @@ const blogSchema = new mongoose.Schema(
 
 const Blog = mongoose.model("Blog", blogSchema);
 
-// ==================== AUTH MIDDLEWARE ====================
+// =========================
+// JWT Authentication
+// =========================
 
-function authenticateToken(req, res, next) {
-
+const authenticateToken = (req, res, next) => {
     const authHeader = req.headers.authorization;
 
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
-
+    if (!authHeader) {
         return res.status(401).json({
-            message: "Access denied. Please login."
+            message: "Access denied. No token provided."
         });
     }
 
     const token = authHeader.split(" ")[1];
 
-    try {
+    if (!token) {
+        return res.status(401).json({
+            message: "Access denied. Invalid token."
+        });
+    }
 
-        const decoded = jwt.verify(
-            token,
-            JWT_SECRET
-        );
+    try {
+        const decoded = jwt.verify(token, JWT_SECRET);
 
         req.user = decoded;
 
         next();
-
     } catch (error) {
-
         return res.status(403).json({
             message: "Invalid or expired token."
         });
     }
-}
+};
 
-// ==================== REGISTER ====================
+// =========================
+// Test Route
+// =========================
+
+app.get("/", (req, res) => {
+    res.json({
+        message: "Blog API is running successfully 🚀"
+    });
+});
+
+// =========================
+// REGISTER
+// =========================
 
 app.post("/api/register", async (req, res) => {
-
     try {
-
-        const {
-            name,
-            email,
-            password
-        } = req.body;
+        const { name, email, password } = req.body;
 
         if (!name || !email || !password) {
-
             return res.status(400).json({
-                message: "Please fill in all fields."
+                message: "Please provide name, email and password."
             });
         }
 
-        if (password.length < 6) {
-
-            return res.status(400).json({
-                message: "Password must be at least 6 characters."
-            });
-        }
-
-        const normalizedEmail =
-            email.toLowerCase().trim();
-
-        const existingUser =
-            await User.findOne({
-                email: normalizedEmail
-            });
+        const existingUser = await User.findOne({
+            email: email.toLowerCase()
+        });
 
         if (existingUser) {
-
-            return res.status(409).json({
+            return res.status(400).json({
                 message: "User already exists."
             });
         }
 
-        const hashedPassword =
-            await bcrypt.hash(password, 10);
+        const hashedPassword = await bcrypt.hash(password, 10);
 
         const user = new User({
-            name: name.trim(),
-            email: normalizedEmail,
+            name,
+            email: email.toLowerCase(),
             password: hashedPassword
         });
 
         await user.save();
 
         res.status(201).json({
-            message: "Registration successful!"
+            message: "Registration successful."
         });
-
     } catch (error) {
-
-        console.error(
-            "REGISTER ERROR:",
-            error
-        );
+        console.error("Register error:", error);
 
         res.status(500).json({
             message: "Server error during registration."
@@ -202,82 +204,64 @@ app.post("/api/register", async (req, res) => {
     }
 });
 
-// ==================== LOGIN ====================
+// =========================
+// LOGIN
+// =========================
 
 app.post("/api/login", async (req, res) => {
-
     try {
-
-        const {
-            email,
-            password
-        } = req.body;
+        const { email, password } = req.body;
 
         if (!email || !password) {
-
             return res.status(400).json({
-                message: "Please enter email and password."
+                message: "Please provide email and password."
             });
         }
 
-        const normalizedEmail =
-            email.toLowerCase().trim();
-
-        const user =
-            await User.findOne({
-                email: normalizedEmail
-            });
+        const user = await User.findOne({
+            email: email.toLowerCase()
+        });
 
         if (!user) {
-
             return res.status(401).json({
                 message: "Invalid email or password."
             });
         }
 
-        const passwordMatch =
-            await bcrypt.compare(
-                password,
-                user.password
-            );
+        const passwordMatch = await bcrypt.compare(
+            password,
+            user.password
+        );
 
         if (!passwordMatch) {
-
             return res.status(401).json({
                 message: "Invalid email or password."
             });
         }
 
-        const token =
-            jwt.sign(
-                {
-                    userId: user._id.toString(),
-                    email: user.email
-                },
-                JWT_SECRET,
-                {
-                    expiresIn: "1h"
-                }
-            );
+        const token = jwt.sign(
+            {
+                userId: user._id,
+                name: user.name,
+                email: user.email
+            },
+            JWT_SECRET,
+            {
+                expiresIn: "7d"
+            }
+        );
 
         res.json({
-            message: "Login successful!",
-
-            token: token,
-
+            message: "Login successful.",
+            token,
             user: {
                 id: user._id,
                 name: user.name,
                 email: user.email
             }
         });
-
     } catch (error) {
-
-        console.error(
-            "LOGIN ERROR:",
-            error
-        );
+        console.error("Login error:", error);
 
         res.status(500).json({
             message: "Server error during login."
@@ -285,340 +269,261 @@ app.post("/api/login", async (req, res) => {
     }
 });
 
-// ==================== PROFILE ====================
-
-app.get(
-    "/api/profile",
-    authenticateToken,
-    async (req, res) => {
-
-        try {
-
-            const user =
-                await User.findById(
-                    req.user.userId
-                ).select("-password");
-
-            if (!user) {
-
-                return res.status(404).json({
-                    message: "User not found."
-                });
-            }
-
-            res.json({
-                id: user._id,
-                name: user.name,
-                email: user.email
-            });
-
-        } catch (error) {
-
-            console.error(
-                "PROFILE ERROR:",
-                error
-            );
-
-            res.status(500).json({
-                message: "Unable to load profile."
-            });
-        }
-    }
-);
-
-// ==================== CREATE BLOG ====================
-
-app.post(
-    "/api/blogs",
-    authenticateToken,
-    async (req, res) => {
-
-        try {
-
-            const {
-                title,
-                category,
-                content
-            } = req.body;
-
-            if (!title || !category || !content) {
-
-                return res.status(400).json({
-                    message: "Please fill in all blog details."
-                });
-            }
-
-            const user =
-                await User.findById(
-                    req.user.userId
-                );
-
-            if (!user) {
-
-                return res.status(404).json({
-                    message: "User not found."
-                });
-            }
-
-            const blog = new Blog({
-                title: title.trim(),
-                category: category.trim(),
-                content: content.trim(),
-                author: user.name,
-                userId: user._id
-            });
-
-            await blog.save();
-
-            res.status(201).json({
-                message: "Blog created successfully!",
-                blog: blog
-            });
-
-        } catch (error) {
-
-            console.error(
-                "CREATE BLOG ERROR:",
-                error
-            );
-
-            res.status(500).json({
-                message: "Unable to create blog."
-            });
-        }
-    }
-);
-
-// ==================== GET MY BLOGS ====================
-
-app.get(
-    "/api/blogs",
-    authenticateToken,
-    async (req, res) => {
-
-        try {
-
-            const {
-                search,
-                category
-            } = req.query;
-
-            const query = {
-                userId: req.user.userId
-            };
-
-            if (search) {
-
-                query.$or = [
-                    {
-                        title: {
-                            $regex: search,
-                            $options: "i"
-                        }
-                    },
-                    {
-                        content: {
-                            $regex: search,
-                            $options: "i"
-                        }
-                    }
-                ];
-            }
-
-            if (
-                category &&
-                category !== "All"
-            ) {
-
-                query.category = category;
-            }
-
-            const blogs =
-                await Blog.find(query)
-                    .sort({
-                        createdAt: -1
-                    });
-
-            res.json(blogs);
-
-        } catch (error) {
-
-            console.error(
-                "GET BLOGS ERROR:",
-                error
-            );
-
-            res.status(500).json({
-                message: "Unable to load blogs."
-            });
-        }
-    }
-);
-
-// ==================== GET ONE BLOG ====================
-
-app.get(
-    "/api/blogs/:id",
-    authenticateToken,
-    async (req, res) => {
-
-        try {
-
-            const blog =
-                await Blog.findOne({
-                    _id: req.params.id,
-                    userId: req.user.userId
-                });
-
-            if (!blog) {
-
-                return res.status(404).json({
-                    message: "Blog not found."
-                });
-            }
-
-            res.json(blog);
-
-        } catch (error) {
-
-            console.error(
-                "GET BLOG ERROR:",
-                error
-            );
-
-            res.status(500).json({
-                message: "Unable to load blog."
-            });
-        }
-    }
-);
-
-// ==================== UPDATE BLOG ====================
-
-app.put(
-    "/api/blogs/:id",
-    authenticateToken,
-    async (req, res) => {
-
-        try {
-
-            const {
-                title,
-                category,
-                content
-            } = req.body;
-
-            if (!title || !category || !content) {
-
-                return res.status(400).json({
-                    message: "All blog fields are required."
-                });
-            }
-
-            const blog =
-                await Blog.findOneAndUpdate(
-                    {
-                        _id: req.params.id,
-                        userId: req.user.userId
-                    },
-                    {
-                        title: title.trim(),
-                        category: category.trim(),
-                        content: content.trim()
-                    },
-                    {
-                        new: true,
-                        runValidators: true
-                    }
-                );
-
-            if (!blog) {
-
-                return res.status(404).json({
-                    message:
-                        "Blog not found or you are not the owner."
-                });
-            }
-
-            res.json({
-                message: "Blog updated successfully!",
-                blog: blog
-            });
-
-        } catch (error) {
-
-            console.error(
-                "UPDATE BLOG ERROR:",
-                error
-            );
-
-            res.status(500).json({
-                message: "Unable to update blog."
-            });
-        }
-    }
-);
-
-// ==================== DELETE BLOG ====================
-
-app.delete(
-    "/api/blogs/:id",
-    authenticateToken,
-    async (req, res) => {
-
-        try {
-
-            const blog =
-                await Blog.findOneAndDelete({
-                    _id: req.params.id,
-                    userId: req.user.userId
-                });
-
-            if (!blog) {
-
-                return res.status(404).json({
-                    message:
-                        "Blog not found or you are not the owner."
-                });
-            }
-
-            res.json({
-                message: "Blog deleted successfully!"
-            });
-
-        } catch (error) {
-
-            console.error(
-                "DELETE BLOG ERROR:",
-                error
-            );
-
-            res.status(500).json({
-                message: "Unable to delete blog."
-            });
-        }
-    }
-);
-
-// ==================== HOME PAGE ====================
-
-app.get("/", (req, res) => {
-
-    res.sendFile(
-        path.join(__dirname, "index.html")
-    );
-
-});
-
-// ==================== SERVER ====================
-
-app.listen(
-    PORT,
-    () => {
-
-        console.log(
-            `Blog Backend Server is running on port ${PORT}`
+// =========================
+// GET CURRENT USER PROFILE
+// =========================
+
+app.get("/api/profile", authenticateToken, async (req, res) => {
+    try {
+        const user = await User.findById(req.user.userId).select(
+            "-password"
         );
 
+        if (!user) {
+            return res.status(404).json({
+                message: "User not found."
+            });
+        }
+
+        res.json(user);
+    } catch (error) {
+        console.error("Profile error:", error);
+
+        res.status(500).json({
+            message: "Server error."
+        });
     }
-);
+});
+
+// =========================
+// GET ALL BLOGS
+// =========================
+
+app.get("/api/blogs", async (req, res) => {
+    try {
+        const { search, category } = req.query;
+
+        let filter = {};
+
+        if (search) {
+            filter.$or = [
+                {
+                    title: {
+                        $regex: search,
+                        $options: "i"
+                    }
+                },
+                {
+                    content: {
+                        $regex: search,
+                        $options: "i"
+                    }
+                }
+            ];
+        }
+
+        if (category && category !== "All") {
+            filter.category = category;
+        }
+
+        const blogs = await Blog.find(filter)
+            .populate("author", "name email")
+            .sort({ createdAt: -1 });
+
+        res.json(blogs);
+    } catch (error) {
+        console.error("Get blogs error:", error);
+
+        res.status(500).json({
+            message: "Server error while fetching blogs."
+        });
+    }
+});
+
+// =========================
+// GET SINGLE BLOG
+// =========================
+
+app.get("/api/blogs/:id", async (req, res) => {
+    try {
+        const blog = await Blog.findById(req.params.id).populate(
+            "author",
+            "name email"
+        );
+
+        if (!blog) {
+            return res.status(404).json({
+                message: "Blog not found."
+            });
+        }
+
+        res.json(blog);
+    } catch (error) {
+        console.error("Get blog error:", error);
+
+        res.status(500).json({
+            message: "Invalid blog ID or server error."
+        });
+    }
+});
+
+// =========================
+// CREATE BLOG
+// =========================
+
+app.post("/api/blogs", authenticateToken, async (req, res) => {
+    try {
+        const { title, content, category } = req.body;
+
+        if (!title || !content) {
+            return res.status(400).json({
+                message: "Title and content are required."
+            });
+        }
+
+        const blog = new Blog({
+            title,
+            content,
+            category: category || "General",
+            author: req.user.userId
+        });
+
+        await blog.save();
+
+        const populatedBlog = await Blog.findById(blog._id).populate(
+            "author",
+            "name email"
+        );
+
+        res.status(201).json({
+            message: "Blog created successfully.",
+            blog: populatedBlog
+        });
+    } catch (error) {
+        console.error("Create blog error:", error);
+
+        res.status(500).json({
+            message: "Server error while creating blog."
+        });
+    }
+});
+
+// =========================
+// UPDATE BLOG
+// =========================
+
+app.put("/api/blogs/:id", authenticateToken, async (req, res) => {
+    try {
+        const { title, content, category } = req.body;
+
+        const blog = await Blog.findById(req.params.id);
+
+        if (!blog) {
+            return res.status(404).json({
+                message: "Blog not found."
+            });
+        }
+
+        if (blog.author.toString() !== req.user.userId) {
+            return res.status(403).json({
+                message: "You can only edit your own blogs."
+            });
+        }
+
+        blog.title = title || blog.title;
+        blog.content = content || blog.content;
+        blog.category = category || blog.category;
+
+        await blog.save();
+
+        const updatedBlog = await Blog.findById(blog._id).populate(
+            "author",
+            "name email"
+        );
+
+        res.json({
+            message: "Blog updated successfully.",
+            blog: updatedBlog
+        });
+    } catch (error) {
+        console.error("Update blog error:", error);
+
+        res.status(500).json({
+            message: "Server error while updating blog."
+        });
+    }
+});
+
+// =========================
+// DELETE BLOG
+// =========================
+
+app.delete("/api/blogs/:id", authenticateToken, async (req, res) => {
+    try {
+        const blog = await Blog.findById(req.params.id);
+
+        if (!blog) {
+            return res.status(404).json({
+                message: "Blog not found."
+            });
+        }
+
+        if (blog.author.toString() !== req.user.userId) {
+            return res.status(403).json({
+                message: "You can only delete your own blogs."
+            });
+        }
+
+        await Blog.findByIdAndDelete(req.params.id);
+
+        res.json({
+            message: "Blog deleted successfully."
+        });
+    } catch (error) {
+        console.error("Delete blog error:", error);
+
+        res.status(500).json({
+            message: "Server error while deleting blog."
+        });
+    }
+});
+
+// =========================
+// GET LOGGED-IN USER BLOGS
+// =========================
+
+app.get("/api/my-blogs", authenticateToken, async (req, res) => {
+    try {
+        const blogs = await Blog.find({
+            author: req.user.userId
+        })
+            .populate("author", "name email")
+            .sort({ createdAt: -1 });
+
+        res.json(blogs);
+    } catch (error) {
+        console.error("My blogs error:", error);
+
+        res.status(500).json({
+            message: "Server error while fetching your blogs."
+        });
+    }
+});
+
+// =========================
+// 404 ROUTE
+// =========================
+
+app.use((req, res) => {
+    res.status(404).json({
+        message: "Route not found."
+    });
+});
+
+// =========================
+// START SERVER
+// =========================
+
+app.listen(PORT, () => {
+    console.log(`🚀 Server running on port ${PORT}`);
+});
